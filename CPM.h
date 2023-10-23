@@ -1,5 +1,5 @@
-//  CPM.h written by NoctaDev, licensed under the MIT license
-//  Copyright (c) 2023 NoctaDev
+//  CPM.h written by Sum1Code, licensed under the MIT license
+//  Copyright (c) 2023 Sum1Code
 
 #pragma once
 #ifndef __CPM_AVAIL_
@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
+#include <fnmatch.h>
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -21,6 +23,39 @@
 
 
 typedef enum { MSG, WARNING, ERROR } LOG_LEVEL;
+
+
+#define CPMLOG(loglevel, msg) _cpmlog(loglevel, msg);
+
+typedef enum { EXECUTABLE, STATICLIB, DYNLIB } BuildType_e;
+
+typedef struct {
+  BuildType_e type;
+  char *srcs;
+  char *include_dir;
+  char *project_name;
+  char *compiler;
+  char *flags;
+} BuildProperties_t;
+
+void _cpmlog(LOG_LEVEL level, const char *msg);
+void cpm_target(BuildProperties_t* buildprop, BuildType_e type,
+                const char *name);
+char *appendToString(const char *original, const char *append);
+void cpm_init(BuildProperties_t *buildprop);
+void _cpm_srcs_create(BuildProperties_t *buildprop, ...);
+void _cpm_cflags_create(BuildProperties_t *buildprop, ...);
+void cpm_dircreate(char* dirpath);
+char* cpm_glob_dir(const char* dirpath, const char* pattern);
+
+
+#ifdef CPM_IMPLEMENTATION // WILL BE RUN AT cpm_init
+  void cpm_setup();       
+#else
+  void cpm_setup(){
+    CPMLOG(ERROR, "PLEASE DEFINE cpm_setup() BY ADDING (#define CPM_IMPLEMENTATION) \nTO THE VERY TOP OF BUILD SCRIPT!");
+  }
+#endif
 
 void _cpmlog(LOG_LEVEL level, const char *msg) {
   time_t current_time;
@@ -47,23 +82,6 @@ void _cpmlog(LOG_LEVEL level, const char *msg) {
     break;
   }
 }
-#define CPMLOG(loglevel, msg) _cpmlog(loglevel, msg);
-
-
-typedef enum {
-  EXECUTABLE,
-  STATICLIB,
-  DYNLIB,
-} BuildType_e;
-
-typedef struct {
-  BuildType_e type;
-  char *srcs;
-  char *include_dir;
-  char *project_name;
-  char *compiler;
-  char *flags;
-} BuildProperties_t;
 
 void cpm_target(BuildProperties_t* buildprop, BuildType_e type,
                 const char *name) {
@@ -100,6 +118,7 @@ char *appendToString(const char *original, const char *append) {
 
 #define STRING_ALLOC_SIZE 255
 void cpm_init(BuildProperties_t *buildprop) {
+  cpm_setup();
   buildprop->compiler = (char *)malloc(STRING_ALLOC_SIZE);
   buildprop->flags = (char *)malloc(STRING_ALLOC_SIZE);
   buildprop->include_dir = (char *)malloc(STRING_ALLOC_SIZE);
@@ -182,9 +201,9 @@ void cpm_compile(BuildProperties_t* prop){
     strcat(cmdstr, " -I");
     strcat(cmdstr, prop->include_dir);
 
-    printf("Command: %s\n", cmdstr);
+    CPMLOG(MSG, cmdstr);
     if (system(cmdstr) != 0){
-      CPMLOG(ERROR, "COMPILATION FAILED!")
+      CPMLOG(ERROR, "COMPILATION FAILED AT THE ERROR ON TOP!")
     };
 
 }
@@ -193,6 +212,69 @@ void cpm_compile(BuildProperties_t* prop){
     _cpm_cflags_create(buildprop_ptr, __VA_ARGS__, NULL)
 #define cpm_srcs(buildprop_ptr, ...)                                         \
   _cpm_srcs_create(buildprop_ptr,  __VA_ARGS__, NULL)
+
+char* cpm_glob_dir(const char* dirpath, const char* pattern){
+  DIR *dir;
+    struct dirent *entry;
+
+    if ((dir = opendir(dirpath)) == NULL) {
+        perror("opendir");
+        return NULL;
+    }
+
+    // Initialize a buffer to store the results
+    char *result = (char*) malloc(5);
+    result[0] = '\0';
+    size_t resultSize = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (fnmatch(pattern, entry->d_name, 0) == 0) {
+            // Calculate the new size of the result string
+            size_t newResultSize = resultSize + strlen(entry->d_name) + 1; // +1 for the space
+
+            // Allocate memory for the updated result string
+            char *newResult = (char *)malloc(newResultSize);
+            if (newResult == NULL) {
+                perror("malloc");
+                free(result);
+                closedir(dir);
+                return NULL;
+            }
+
+            if (result != NULL) {
+                strcpy(newResult, result);
+                free(result);
+            }
+
+            result = newResult;
+
+            // Append the matched file name and a space
+            strcat(result, dirpath);
+            strcat(result, "/");
+            strcat(result, entry->d_name);
+            strcat(result, " ");
+            resultSize = newResultSize;
+
+        }
+    }
+
+    closedir(dir);
+
+    return result;
+}
+
+void cpm_dircreate(char* dirpath)
+{
+    char command[256];
+    snprintf(command, sizeof(command), "mkdir -p %s", dirpath);
+    
+    if (system(command) == 0) {
+        CPMLOG(MSG, command);
+    } else {
+        CPMLOG(ERROR, "DIRECTORY CREATION FAILED!");
+    }
+}
+
 
 #define __CPM_AVAIL_
 #endif
