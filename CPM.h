@@ -156,7 +156,7 @@ void cpm_include(BuildProperties_t* prop, char* include ){
 
 void cpm_compile(BuildProperties_t* prop){
     size_t cmd_len = sizeof(prop->compiler) + sizeof(prop->include_dir) + sizeof(prop->project_name) + sizeof(prop->flags) + sizeof(prop->srcs) + 255 * 2;
-    char* cmdstr = malloc(cmd_len);
+    char* cmdstr = (char*) malloc(cmd_len);
     cmdstr[0] = '\0';
 
     strcat(cmdstr, prop->compiler);
@@ -164,7 +164,7 @@ void cpm_compile(BuildProperties_t* prop){
     switch(prop->type){
       case DYNLIB:
       strcat(cmdstr, " -c -fpic ");
-      char* new_name = malloc(sizeof(prop->project_name) + sizeof("lib"));
+      char* new_name = (char*) malloc(sizeof(prop->project_name) + sizeof("lib"));
       new_name[0] = '\0';
       strcat(new_name, "lib");
       strcat(new_name, prop->project_name);
