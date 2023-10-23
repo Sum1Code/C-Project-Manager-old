@@ -67,7 +67,7 @@ void _cpmlog(LOG_LEVEL level, const char *msg) {
   switch (level) {
   case MSG:
     printf("%sLOG (%02d:%02d:%02d): %s%s\n", KMAG, time_info->tm_hour,
-           time_info->tm_min, time_info->tm_sec, msg, KNRM);
+           time_info->tm_min, time_info->tm_sec,msg, KNRM);
     break;
   case ERROR:
     printf("%sCOMPILATION HALTED: %s%s\n", KRED, msg, KNRM);
