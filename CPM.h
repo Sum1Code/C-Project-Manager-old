@@ -323,21 +323,22 @@ bool shouldRecompile(char *srcfile, char *execfile)
   return sourceInfo.st_mtime > executableInfo.st_mtime;
 }
 
-#define cpm_rebuild_self(argc, argv)                            \
-  if (shouldRecompile(__FILE__, argv[0]))                       \
-  {                                                             \
-    char *change_name_cmd = malloc(255);                        \
-    sprintf(change_name_cmd, "mv %s %s.old", argv[0], argv[0]); \
-    CPMLOG(WARNING, "changing current executable to old");      \
-    system(change_name_cmd);                                    \
-    CPMLOG(WARNING, "source changed, recompiling");             \
-    BuildProperties_t prop;                                     \
-    cpm_init(&prop);                                            \
-    cpm_target(&prop, EXECUTABLE, argv[0]);                     \
-    cpm_srcs(&prop, __FILE__);                                  \
-    cpm_compile(&prop);                                         \
-    CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n");                     \
-    system(argv[0]);                                            \
+#define cpm_rebuild_self(argc, argv)                                 \
+  if (shouldRecompile(__FILE__, argv[0]))                            \
+  {                                                                  \
+    char *change_name_cmd = malloc(255);                             \
+    sprintf(change_name_cmd, "mv %s %s.old", argv[0], argv[0]);      \
+    CPMLOG(WARNING, "changing current executable to old");           \
+    system(change_name_cmd);                                         \
+    CPMLOG(WARNING, "source changed, recompiling");                  \
+    BuildProperties_t prop;                                          \
+    cpm_init(&prop);                                                 \
+    cpm_target(&prop, EXECUTABLE, argv[0]);                          \
+    cpm_srcs(&prop, __FILE__);                                       \
+    cpm_compile(&prop);                                              \
+    CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n"); \
+    system(argv[0]);                                                 \
+    exit(0);                                                         \
   }
 
 #define __CPM_AVAIL_
