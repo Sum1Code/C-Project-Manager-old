@@ -1,9 +1,8 @@
 #define CPM_IMPLEMENTATION      // IMPORTANT TO IMPLEMENT cpm_setup OTHERWISE ERROR
 #include "CPM.h"                // INCLUDE AFTER CPM_IMPLEMENTATION
 
-void cpm_setup(){               // IMPLEMENT THIS ON YOUR OWN 
-    cpm_dircreate("./build");   //DIRCREATE TO CREATE DIRECTORIES
-    cpm_dircreate("./srcs");   
+void cpm_setup(){               // IMPLEMENT THIS ON YOUR OWN (Can be Empty)
+    
 }
 
 

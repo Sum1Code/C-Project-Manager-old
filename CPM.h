@@ -39,6 +39,12 @@ typedef enum
   DYNLIB
 } BuildType_e;
 
+typedef enum
+{
+  D_CREATE,
+  D_DELETE,
+} DirOps_e;
+
 typedef struct
 {
   BuildType_e type;
@@ -56,10 +62,9 @@ char *appendToString(const char *original, const char *append);
 void cpm_init(BuildProperties_t *buildprop);
 void _cpm_srcs_create(BuildProperties_t *buildprop, ...);
 void _cpm_cflags_create(BuildProperties_t *buildprop, ...);
-void cpm_dircreate(char *dirpath);
+void cpm_dirops(DirOps_e operation, char *dirpath);
 char *cpm_glob_dir(const char *dirpath, const char *pattern);
 bool shouldRecompile(char *srcfile, char *execfile);
-void cpm_rebuild_self();
 
 #ifdef CPM_IMPLEMENTATION // WILL BE RUN AT cpm_init
 void cpm_setup();
@@ -295,18 +300,36 @@ char *cpm_glob_dir(const char *dirpath, const char *pattern)
   return result;
 }
 
-void cpm_dircreate(char *dirpath)
+void cpm_dirops(DirOps_e operation, char *dirpath)
 {
   char command[256];
-  snprintf(command, sizeof(command), "mkdir -p %s", dirpath);
+  switch (operation)
+  {
+  case D_CREATE:
 
-  if (system(command) == 0)
-  {
-    CPMLOG(MSG, command);
-  }
-  else
-  {
-    CPMLOG(ERROR, "DIRECTORY CREATION FAILED!");
+    snprintf(command, sizeof(command), "mkdir -p %s", dirpath);
+
+    if (system(command) == 0)
+    {
+      CPMLOG(MSG, command);
+    }
+    else
+    {
+      CPMLOG(ERROR, "DIRECTORY CREATION FAILED!");
+    }
+    break;
+  case D_DELETE:
+    snprintf(command, sizeof(command), "rm -rf %s", dirpath);
+
+    if (system(command) == 0)
+    {
+      CPMLOG(MSG, command);
+    }
+    else
+    {
+      CPMLOG(ERROR, "DIRECTORY DELETION FAILED!");
+    }
+    break;
   }
 }
 
@@ -323,7 +346,7 @@ bool shouldRecompile(char *srcfile, char *execfile)
   return sourceInfo.st_mtime > executableInfo.st_mtime;
 }
 
-#define cpm_rebuild_self(argv)                                 \
+#define cpm_rebuild_self(argv)                                       \
   if (shouldRecompile(__FILE__, argv[0]))                            \
   {                                                                  \
     char *change_name_cmd = malloc(255);                             \
@@ -337,7 +360,8 @@ bool shouldRecompile(char *srcfile, char *execfile)
     cpm_srcs(&prop, __FILE__);                                       \
     cpm_compile(&prop);                                              \
     CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n"); \
-    if (system(argv[0]) != 0) CPMLOG(ERROR, "CANNOT RUN NEW BUILDER");                                                 \
+    if (system(argv[0]) != 0)                                        \
+      CPMLOG(ERROR, "CANNOT RUN NEW BUILDER");                       \
     exit(0);                                                         \
   }
 
