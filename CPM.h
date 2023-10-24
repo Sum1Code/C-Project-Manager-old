@@ -323,7 +323,7 @@ bool shouldRecompile(char *srcfile, char *execfile)
   return sourceInfo.st_mtime > executableInfo.st_mtime;
 }
 
-#define cpm_rebuild_self(argc, argv)                                 \
+#define cpm_rebuild_self(argv)                                 \
   if (shouldRecompile(__FILE__, argv[0]))                            \
   {                                                                  \
     char *change_name_cmd = malloc(255);                             \
@@ -337,7 +337,7 @@ bool shouldRecompile(char *srcfile, char *execfile)
     cpm_srcs(&prop, __FILE__);                                       \
     cpm_compile(&prop);                                              \
     CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n"); \
-    system(argv[0]);                                                 \
+    if (system(argv[0]) != 0) CPMLOG(ERROR, "CANNOT RUN NEW BUILDER");                                                 \
     exit(0);                                                         \
   }
 

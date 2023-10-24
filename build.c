@@ -6,15 +6,10 @@ void cpm_setup(){               // IMPLEMENT THIS ON YOUR OWN
     cpm_dircreate("./srcs");   
 }
 
-void compile_objects(){
-    BuildProperties_t prop;
-    CPMLOG(MSG, "Building Object files");
-    cpm_init(&prop);
-    cpm_target(&prop, STATICLIB, "bb");
-}
+
 
 int main(int argc, char** argv){
-    cpm_rebuild_self(argc, argv);                        // rebuild myself if source code changed
+    cpm_rebuild_self(argv);                        // rebuild myself if source code changed
     BuildProperties_t prop;                              // MAIN BUILD PROPERTIES 
     CPMLOG(WARNING, "EXAMPLE_CONFIG_USED")  
     cpm_init(&prop);                                    // INIT BUILD PROPS AND RUNS cpm_setup()
