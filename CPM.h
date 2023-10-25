@@ -4,17 +4,18 @@
 #pragma once
 #ifndef __CPM_AVAIL_
 
+#include <dirent.h>
+#include <fnmatch.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <dirent.h>
-#include <fnmatch.h>
-#include <stdbool.h>
 #include <sys/stat.h>
+#include <time.h>
 
-#define __GET_FILE_NAME_(name) (strrchr(name, '/') ? strrchr(name, '/') + 1 : name) 
+#define __GET_FILE_NAME_(name) \
+  (strrchr(name, '/') ? strrchr(name, '/') + 1 : name)
 
 #define KNRM "\x1B[0m"
 #define KRED "\x1B[31m"
@@ -60,9 +61,9 @@ typedef struct
 
 void _cpmlog(LOG_LEVEL level, const char *msg);
 void cpm_target(BuildProperties_t *buildprop, BuildType_e type,
-                const char *name, const char* build_dir);
+                const char *name, const char *build_dir);
 char *appendToString(const char *original, const char *append);
-void cpm_init(BuildProperties_t *buildprop);
+void cpm_init(BuildProperties_t *buildprop, char *compiler);
 void _cpm_srcs_create(BuildProperties_t *buildprop, ...);
 void _cpm_cflags_create(BuildProperties_t *buildprop, ...);
 void cpm_dirops(DirOps_e operation, char *dirpath);
@@ -74,7 +75,8 @@ void cpm_setup();
 #else
 void cpm_setup()
 {
-  CPMLOG(ERROR, "PLEASE DEFINE cpm_setup() BY ADDING (#define CPM_IMPLEMENTATION) \nTO THE VERY TOP OF BUILD SCRIPT!");
+  CPMLOG(ERROR, "PLEASE DEFINE cpm_setup() BY ADDING (#define "
+                "CPM_IMPLEMENTATION) \nTO THE VERY TOP OF BUILD SCRIPT!");
 }
 #endif
 
@@ -111,7 +113,7 @@ void cpm_target(BuildProperties_t *buildprop, BuildType_e type,
 {
   buildprop->project_name = (char *)name;
   buildprop->type = type;
-  buildprop->build_dir = (char*)build_dir;
+  buildprop->build_dir = (char *)build_dir;
 }
 
 char *appendToString(const char *original, const char *append)
@@ -120,7 +122,8 @@ char *appendToString(const char *original, const char *append)
   int appendLength = strlen(append);
 
   // Calculate the new size needed for the combined string
-  int newSize = originalLength + appendLength + 2; // +2 for space and null-terminator
+  int newSize =
+      originalLength + appendLength + 2; // +2 for space and null-terminator
 
   // Allocate memory for the combined string
   char *result = (char *)malloc(newSize);
@@ -144,7 +147,7 @@ char *appendToString(const char *original, const char *append)
 }
 
 #define STRING_ALLOC_SIZE 255
-void cpm_init(BuildProperties_t *buildprop)
+void cpm_init(BuildProperties_t *buildprop, char *compiler)
 {
   cpm_setup();
   buildprop->compiler = (char *)malloc(STRING_ALLOC_SIZE);
@@ -153,14 +156,16 @@ void cpm_init(BuildProperties_t *buildprop)
   buildprop->project_name = (char *)malloc(STRING_ALLOC_SIZE);
   buildprop->srcs = (char *)malloc(STRING_ALLOC_SIZE);
 
-  if (buildprop->compiler == NULL || buildprop->flags == NULL || buildprop->include_dir == NULL || buildprop->project_name == NULL || buildprop->srcs == NULL)
+  if (buildprop->compiler == NULL || buildprop->flags == NULL ||
+      buildprop->include_dir == NULL || buildprop->project_name == NULL ||
+      buildprop->srcs == NULL)
   {
     perror("Memory allocation error");
     exit(EXIT_FAILURE);
   }
 
   // Initialize all fields to empty strings (null-terminated)
-  buildprop->compiler = "clang\0";
+  buildprop->compiler = compiler;
   buildprop->flags[0] = '\0';
   buildprop->include_dir = "./\0";
   buildprop->project_name[0] = '\0';
@@ -175,7 +180,8 @@ void _cpm_srcs_create(BuildProperties_t *buildprop, ...)
   while (arg != NULL)
   {
     char *newSrc = appendToString(buildprop->srcs, arg);
-    free(buildprop->srcs);    // Free the old srcs if they were dynamically allocated
+    free(buildprop
+             ->srcs);         // Free the old srcs if they were dynamically allocated
     buildprop->srcs = newSrc; // Update srcs with the new concatenated string
     arg = va_arg(args, char *);
   }
@@ -197,11 +203,6 @@ void _cpm_cflags_create(BuildProperties_t *buildprop, ...)
   va_end(args);
 }
 
-void cpm_compiler(BuildProperties_t *prop, char *compiler_name)
-{
-  prop->compiler = compiler_name;
-}
-
 void cpm_include(BuildProperties_t *prop, char *include)
 {
   prop->include_dir = include;
@@ -209,8 +210,10 @@ void cpm_include(BuildProperties_t *prop, char *include)
 
 void cpm_compile(BuildProperties_t *prop)
 {
-  size_t cmd_len = sizeof(prop->compiler) + sizeof(prop->include_dir) + sizeof(prop->project_name) + sizeof(prop->flags) + sizeof(prop->srcs) + 255 * 2;
-  char *cmdstr = (char *)malloc(cmd_len);
+  size_t cmd_len = sizeof(prop->compiler) + sizeof(prop->include_dir) +
+                   sizeof(prop->project_name) + sizeof(prop->flags) +
+                   sizeof(prop->srcs) + 1024 * 2;
+  char *cmdstr = (char *)malloc(cmd_len * 5);
   cmdstr[0] = '\0';
 
   strcat(cmdstr, prop->compiler);
@@ -218,22 +221,28 @@ void cpm_compile(BuildProperties_t *prop)
   switch (prop->type)
   {
   case DYNLIB:
+  {
     strcat(cmdstr, " -c -fpic ");
     char *new_name = (char *)malloc(sizeof(prop->project_name) + sizeof("lib"));
     new_name[0] = '\0';
     strcat(new_name, "lib");
     strcat(new_name, prop->project_name);
     prop->project_name = new_name;
-    break;
+  }
+  break;
+
   case STATICLIB:
+  {
     strcat(cmdstr, " -c ");
-    break;
+  }
+  break;
   default:
     break;
   }
   strcat(cmdstr, prop->srcs);
   strcat(cmdstr, " -o ");
   strcat(cmdstr, prop->build_dir);
+  strcat(cmdstr, "/");
   strcat(cmdstr, prop->project_name);
   strcat(cmdstr, " -I");
   strcat(cmdstr, prop->include_dir);
@@ -271,24 +280,20 @@ char *cpm_glob_dir(const char *dirpath, const char *pattern)
     if (fnmatch(pattern, entry->d_name, 0) == 0)
     {
       // Calculate the new size of the result string
-      size_t newResultSize = resultSize + strlen(entry->d_name) + 1; // +1 for the space
+      size_t newResultSize =
+          resultSize + strlen(entry->d_name) + 1; // +1 for the space
 
       // Allocate memory for the updated result string
-      char *newResult = (char *)malloc(newResultSize);
-      if (newResult == NULL)
+      char *newResult = (char *)realloc(result, newResultSize);
+      if (!newResult)
       {
-        perror("malloc");
+        perror("realloc");
         free(result);
         closedir(dir);
         return NULL;
       }
 
-      if (result != NULL)
-      {
-        strcpy(newResult, result);
-        free(result);
-      }
-
+      if (newResult)
       result = newResult;
 
       // Append the matched file name and a space
@@ -358,10 +363,10 @@ bool shouldRecompile(char *srcfile, char *execfile)
     sprintf(change_name_cmd, "mv %s %s.old", argv[0], argv[0]);      \
     CPMLOG(WARNING, "changing current executable to old");           \
     system(change_name_cmd);                                         \
-    CPMLOG(WARNING, "source changed, recompiling");                  \
+    CPMLOG(WARNING, "recompiling build system");                     \
     BuildProperties_t prop;                                          \
-    cpm_init(&prop);                                                 \
-    cpm_target(&prop, EXECUTABLE, __GET_FILE_NAME_(argv[0]), "./");                          \
+    cpm_init(&prop, "cc");                                           \
+    cpm_target(&prop, EXECUTABLE, __GET_FILE_NAME_(argv[0]), "./");  \
     cpm_srcs(&prop, __FILE__);                                       \
     cpm_compile(&prop);                                              \
     CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n"); \
