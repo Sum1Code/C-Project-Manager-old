@@ -59,6 +59,18 @@ typedef struct
   char *build_dir;
 } BuildProperties_t;
 
+typedef struct{
+  char* str;
+  size_t strsize;
+  size_t strcap;
+} StringBuilder_t;
+
+StringBuilder_t* sb_new(size_t initial_size);
+void sb_append(StringBuilder_t* sb, char c);
+void sb_appendstr(StringBuilder_t* sb, char* str);
+void sb_free(StringBuilder_t* sb);
+char* sb_to_string(StringBuilder_t* sb);
+
 void _cpmlog(LOG_LEVEL level, const char *msg);
 void cpm_target(BuildProperties_t *buildprop, BuildType_e type,
                 const char *name, const char *build_dir);
@@ -96,6 +108,7 @@ void _cpmlog(LOG_LEVEL level, const char *msg)
     break;
   case ERROR:
     printf("%sCOMPILATION HALTED: %s%s\n", KRED, msg, KNRM);
+    perror("HALTED at:");
     exit(1);
     break;
   case WARNING:
@@ -374,6 +387,45 @@ bool shouldRecompile(char *srcfile, char *execfile)
       CPMLOG(ERROR, "CANNOT RUN NEW BUILDER");                       \
     exit(0);                                                         \
   }
+
+// SB IMPL
+StringBuilder_t* sb_new(size_t initial_size){
+  StringBuilder_t* sb_res = malloc(sizeof(StringBuilder_t));
+  if(!sb_res) CPMLOG(ERROR, "String builder failed to create");
+  sb_res->str = calloc(initial_size, sizeof(char));
+  sb_res->strcap = initial_size;
+  sb_res->strsize = 0;
+  return sb_res;
+}
+void sb_append(StringBuilder_t* sb, char c){
+  sb->str[sb->strsize] = c;
+  ++sb->strsize;
+  if (sb->strsize == sb->strcap){
+    char* new_str = realloc(sb->str, sb->strcap * 2);
+    if (!new_str) CPMLOG(ERROR, "FAILED TO REALLOC STRING");
+    memset(new_str + sb->strcap, 0, sb->strcap);
+    sb->str = new_str;
+    sb->strcap *= 2;
+  }
+}
+void sb_appendstr(StringBuilder_t* sb, char* str){
+  for (size_t strsize = 0 ; strsize < strlen(str); strsize++){
+    sb_append(sb, str[strsize]);
+  }
+}
+void sb_free(StringBuilder_t* sb){
+  free(sb->str);
+  free(sb);
+}
+
+/// WARNING: sb_retstr WILL RETURN THE STRING CONTAINED BUT CONSUME THE STRING BUILDER
+char* sb_to_string(StringBuilder_t* sb){
+  char* ret = malloc(sb->strsize);
+  ret = strncpy(ret, sb->str, sb->strsize);
+  sb_free(sb);
+  return ret; 
+}
+
 
 #define __CPM_AVAIL_
 #endif
