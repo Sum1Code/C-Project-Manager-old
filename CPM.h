@@ -4,6 +4,8 @@
 #pragma once
 #ifndef __CPM_AVAIL_
 
+#ifdef __linux__
+
 #include <dirent.h>
 #include <fnmatch.h>
 #include <stdarg.h>
@@ -448,6 +450,8 @@ StringSplice_t *sb_split_at(StringBuilder_t *builder, char *delim)
   }
   return splice;
 }
-
+#else
+#error OTHER_PLATFORMS_NOT_SUPPORTED 
+#endif
 #define __CPM_AVAIL_
 #endif
