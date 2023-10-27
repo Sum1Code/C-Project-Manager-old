@@ -87,10 +87,15 @@ void cpm_init(BuildProperties_t *buildprop, char *compiler);
 void _cpm_srcs_create(BuildProperties_t *buildprop, ...);
 void _cpm_cflags_create(BuildProperties_t *buildprop, ...);
 void cpm_dirops(DirOps_e operation, char *dirpath);
-char *cpm_glob_dir(const char *dirpath, const char *pattern);
+char *cpm_glob_dir(char *dirpath, const char *pattern);
 bool shouldRecompile(char *srcfile, char *execfile);
 
 bool cpm_setup_warning_once = false;
+
+
+#define sb_append_strspace(string_builder_ptr, str) \
+  sb_appendstr(string_builder_ptr, str);            \
+  sb_append(string_builder_ptr, ' ');
 
 #ifdef CPM_IMPLEMENTATION // WILL BE RUN AT cpm_init
 void cpm_setup();
@@ -195,7 +200,7 @@ void _cpm_cflags_create(BuildProperties_t *buildprop, ...)
   char *arg = va_arg(args, char *);
   while (arg != NULL)
   {
-    sb_appendstr(resbuild, arg);
+    sb_append_strspace(resbuild, arg);
     arg = va_arg(args, char *);
   }
   va_end(args);
@@ -247,9 +252,7 @@ StringBuilder_t* sb_copy(StringBuilder_t* sb){
 }
 
 
-#define sb_append_strspace(string_builder_ptr, str) \
-  sb_appendstr(string_builder_ptr, str);            \
-  sb_append(string_builder_ptr, ' ');
+
 
 void cpm_compile(BuildProperties_t *prop)
 {
@@ -285,7 +288,7 @@ void cpm_compile(BuildProperties_t *prop)
 #define cpm_srcs(buildprop_ptr, ...) \
   _cpm_srcs_create(buildprop_ptr, __VA_ARGS__, NULL)
 
-char *cpm_glob_dir(const char *dirpath, const char *pattern)
+char *cpm_glob_dir(char *dirpath, const char *pattern)
 {
   DIR *dir;
   struct dirent *entry;
@@ -368,7 +371,7 @@ bool shouldRecompile(char *srcfile, char *execfile)
     CPMLOG(WARNING, "recompiling build system");                     \
     BuildProperties_t prop;                                          \
     cpm_init(&prop, "cc");                                           \
-    cpm_target(&prop, EXECUTABLE, GET_FILE_NAME(argv[0]), "./");    \
+    cpm_target(&prop, EXECUTABLE, GET_FILE_NAME(argv[0]), "./");     \
     cpm_srcs(&prop, __FILE__);                                       \
     cpm_compile(&prop);                                              \
     CPMLOG(WARNING, "RUNNING NEW BUILDER\n---------------------\n"); \
