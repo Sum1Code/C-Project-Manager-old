@@ -48,7 +48,7 @@ typedef enum
 typedef enum
 {
   EXECUTABLE,
-  STATICLIB,
+  OBJECT,
   DYNLIB
 } BuildType_e;
 
@@ -102,8 +102,12 @@ bool shouldRecompile(char *srcfile, char *execfile);
 void cpm_compile(BuildProperties_t *prop);
 pid_t cpm_compile_async(BuildProperties_t *prop);
 void cpm_compile_async_poll(pid_t pid);
+void cpm_quick_compile(char* compiler, char* srcs, char* build_dir, BuildType_e target, char* name, char* flags);
+pid_t cpm_quick_compile_async(char* compiler, char* srcs, char* build_dir, BuildType_e target, char* name, char* flags);
 
 static bool cpm_setup_warning_once = false;
+static bool cpm_setup_ran_once = false;
+
 
 #define cpm_compile_async_poll_many(pid_array)          \
   for (size_t i = 0; i < ARRAY_SIZE(pid_array, pid_t); i++) \
@@ -115,20 +119,14 @@ static bool cpm_setup_warning_once = false;
   sb_appendstr(string_builder_ptr, str);            \
   sb_append(string_builder_ptr, ' ');
 
+#define cpm_flags(buildprop_ptr, ...) \
+  _cpm_cflags_create(buildprop_ptr, __VA_ARGS__, NULL)
+#define cpm_srcs(buildprop_ptr, ...) \
+  _cpm_srcs_create(buildprop_ptr, __VA_ARGS__, NULL)
+
 #define ARRAY_SIZE(array, type) (sizeof(array) / sizeof(type))
 
-#ifdef CPM_IMPLEMENTATION // WILL BE RUN AT cpm_init
-void cpm_setup();
-#else
-void cpm_setup()
-{
-  if (!cpm_setup_warning_once)
-  {
-    CPMLOG(CPM_WARNING, "using empty cpm_setup(), define by adding (#define CPM_IMPLEMENTATION) before including cpm.h and then define cpm_setup in your build.c \n");
-    cpm_setup_warning_once = true;
-  }
-}
-#endif
+
 
 void _cpmlog(LOG_LEVEL level, const char *msg)
 {
@@ -170,7 +168,6 @@ void cpm_target(BuildProperties_t *buildprop, BuildType_e type,
 #define STRING_ALLOC_SIZE 255
 void cpm_init(BuildProperties_t *buildprop, char *compiler)
 {
-  cpm_setup();
   buildprop->compiler = (char *)malloc(STRING_ALLOC_SIZE);
   buildprop->flags = (char *)malloc(STRING_ALLOC_SIZE);
   buildprop->include_dir = (char *)malloc(STRING_ALLOC_SIZE);
@@ -225,6 +222,28 @@ void _cpm_cflags_create(BuildProperties_t *buildprop, ...)
   }
   va_end(args);
   buildprop->flags = sb_to_string(resbuild);
+}
+
+void cpm_quick_compile(char* compiler, char* srcs, char* build_dir, BuildType_e target, char* name, char* flags){
+  BuildProperties_t bp;
+  cpm_init(&bp, compiler);
+  if (!flags)
+  cpm_flags(&bp, " ");
+  else 
+  cpm_flags(&bp, flags);
+  cpm_srcs(&bp, srcs);
+  cpm_target(&bp, target, name, build_dir);
+  cpm_compile(&bp);
+}
+
+pid_t cpm_quick_compile_async(char* compiler, char* srcs, char* build_dir, BuildType_e target, char* name, char* flags){
+  BuildProperties_t bp;
+  cpm_init(&bp, compiler);
+  cpm_flags(&bp, flags);
+  cpm_srcs(&bp, srcs);
+  cpm_target(&bp, target, name, build_dir);
+  int pid = cpm_compile_async(&bp);
+  return pid;
 }
 
 void sb_patsubst(StringBuilder_t *sb, const char *text_to_replace, const char *replacement)
@@ -284,7 +303,7 @@ void cpm_compile(BuildProperties_t *prop)
   case DYNLIB:
     sb_append_strspace(sbuild, "-shared -fpic -c");
     break;
-  case STATICLIB:
+  case OBJECT:
     sb_append_strspace(sbuild, "-c");
     break;
   case EXECUTABLE:
@@ -302,11 +321,6 @@ void cpm_compile(BuildProperties_t *prop)
   CPMLOG(CPM_LOG, cmdstr);
   system(cmdstr);
 }
-
-#define cpm_flags(buildprop_ptr, ...) \
-  _cpm_cflags_create(buildprop_ptr, __VA_ARGS__, NULL)
-#define cpm_srcs(buildprop_ptr, ...) \
-  _cpm_srcs_create(buildprop_ptr, __VA_ARGS__, NULL)
 
 pid_t cpm_compile_async(BuildProperties_t *prop)
 {
