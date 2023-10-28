@@ -6,4 +6,8 @@
 - `clang build.c -o builder`
 - `./builder`
 
-#### example in build.c and includes some comments to explain
+#### example included in repository and build.c
+
+### TODO:
+- [ ] Implement #define CPM_AS_STRLIB to isolate StringBuilder & StringSlice
+- [ ] Implement Windows for coolness sake. 
