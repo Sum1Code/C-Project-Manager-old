@@ -4,6 +4,7 @@
 #pragma once
 #ifndef __CPM_AVAIL_
 
+#ifndef CPM_AS_STRLIB
 #include <dirent.h>
 #ifdef _WIN32 // WINDOWS IMPLEMENTATION NOT USABLE YET
 #error windows implementation not usable yet!
@@ -74,6 +75,7 @@ void sb_free(StringBuilder_t *sb);
 char *sb_to_string(StringBuilder_t *sb);
 StringSplice_t *sb_split_at(StringBuilder_t *builder, char *delim);
 StringBuilder_t *sb_copy(StringBuilder_t *sb);
+void sb_patsubst(StringBuilder_t *sb, const char *text_to_replace, const char *replacement);
 
 void _cpmlog(LOG_LEVEL level, const char *msg);
 void cpm_target(BuildProperties_t *buildprop, BuildType_e type,
@@ -258,15 +260,6 @@ void sb_patsubst(StringBuilder_t *sb, const char *text_to_replace,
     // Move 'start' ahead to avoid an infinite loop
     start = sb->str + prefix_len + replace_len;
   }
-}
-
-StringBuilder_t *sb_copy(StringBuilder_t *sb) {
-  StringBuilder_t *cpy = malloc(sizeof(StringBuilder_t));
-  cpy->str = malloc(sb->strcap);
-  cpy->strcap = sb->strcap;
-  cpy->strsize = sb->strsize;
-  strncpy(cpy->str, sb->str, sb->strsize);
-  return cpy;
 }
 
 void cpm_compile(BuildProperties_t *prop) {
@@ -463,6 +456,158 @@ StringSplice_t *sb_split_at(StringBuilder_t *builder, char *delim) {
   }
   return splice;
 }
+StringBuilder_t *sb_copy(StringBuilder_t *sb) {
+  StringBuilder_t *cpy = malloc(sizeof(StringBuilder_t));
+  cpy->str = malloc(sb->strcap);
+  cpy->strcap = sb->strcap;
+  cpy->strsize = sb->strsize;
+  strncpy(cpy->str, sb->str, sb->strsize);
+  return cpy;
+}
+#else 
+
+typedef struct StringBuilder {
+  char *str;
+  size_t strsize;
+  size_t strcap;
+} StringBuilder_t;
+
+typedef struct StringSplice {
+  char **strsplice;
+  char delim;
+  size_t splice_count;
+} StringSplice_t;
+
+StringBuilder_t *sb_new();
+void sb_append(StringBuilder_t *sb, char c);
+void sb_appendstr(StringBuilder_t *sb, char *str);
+void sb_free(StringBuilder_t *sb);
+char *sb_to_string(StringBuilder_t *sb);
+StringSplice_t *sb_split_at(StringBuilder_t *builder, char *delim);
+StringBuilder_t *sb_copy(StringBuilder_t *sb);
+void sb_patsubst(StringBuilder_t *sb, const char *text_to_replace, const char *replacement);
+
+
+#define sb_append_strspace(string_builder_ptr, str)                            \
+  sb_appendstr(string_builder_ptr, str);                                       \
+  sb_append(string_builder_ptr, ' ');
+
+void sb_patsubst(StringBuilder_t *sb, const char *text_to_replace,
+                 const char *replacement) {
+  size_t text_len = strlen(text_to_replace);
+  size_t replace_len = strlen(replacement);
+
+  char *start = sb->str;
+  while ((start = strstr(start, text_to_replace)) != NULL) {
+    // Calculate the length of the portion before the match
+    size_t prefix_len = start - sb->str;
+
+    // Calculate the length of the portion after the match
+    size_t suffix_len = sb->strsize - prefix_len - text_len;
+
+    // Allocate a temporary buffer for the modified string
+    char *temp_buffer =
+        (char *)malloc(prefix_len + replace_len + suffix_len + 1);
+
+    // Copy the prefix
+    strncpy(temp_buffer, sb->str, prefix_len);
+    temp_buffer[prefix_len] = '\0';
+
+    // Copy the replacement
+    strcat(temp_buffer, replacement);
+
+    // Copy the suffix
+    strcat(temp_buffer, start + text_len);
+
+    // Update StringBuilder's buffer
+    free(sb->str);
+    sb->str = temp_buffer;
+    sb->strsize = prefix_len + replace_len + suffix_len;
+
+    // Move 'start' ahead to avoid an infinite loop
+    start = sb->str + prefix_len + replace_len;
+  }
+}
+
+StringBuilder_t *sb_copy(StringBuilder_t *sb) {
+  StringBuilder_t *cpy = malloc(sizeof(StringBuilder_t));
+  cpy->str = malloc(sb->strcap);
+  cpy->strcap = sb->strcap;
+  cpy->strsize = sb->strsize;
+  strncpy(cpy->str, sb->str, sb->strsize);
+  return cpy;
+}
+StringBuilder_t *sb_new() {
+  StringBuilder_t *sb_res = malloc(sizeof(StringBuilder_t));
+  if (!sb_res)
+    CPMLOG(CPM_ERROR, "String builder failed to create");
+  sb_res->str = calloc(STRING_ALLOC_SIZE, sizeof(char));
+  sb_res->strcap = STRING_ALLOC_SIZE;
+  sb_res->strsize = 0;
+  return sb_res;
+}
+#define SB_VECTOR_LOAD_FACTOR 2
+void sb_append(StringBuilder_t *sb, char c) {
+  sb->str[sb->strsize] = c;
+  ++sb->strsize;
+  if (sb->strsize == sb->strcap) {
+    char *new_str = realloc(sb->str, sb->strcap * SB_VECTOR_LOAD_FACTOR);
+    if (!new_str)
+      CPMLOG(CPM_ERROR, "FAILED TO REALLOC STRING");
+    memset(new_str + sb->strcap, 0, sb->strcap);
+    sb->str = new_str;
+    sb->strcap *= 2;
+  }
+}
+void sb_appendstr(StringBuilder_t *sb, char *str) {
+  for (size_t strsize = 0; strsize < strlen(str); strsize++) {
+    sb_append(sb, str[strsize]);
+  }
+}
+void sb_free(StringBuilder_t *sb) {
+  free(sb->str);
+  free(sb);
+}
+
+/// WARNING: sb_retstr WILL RETURN THE STRING CONTAINED BUT CONSUME THE STRING
+/// BUILDER
+char *sb_to_string(StringBuilder_t *sb) {
+  char *ret = strdup(sb->str);
+  sb_free(sb);
+  return ret;
+}
+
+#define STRING_SPLICE_INIT_SIZE 5
+/// Borrows StringBuilder and create a unique StringSplice that should be
+/// immutable
+StringSplice_t *sb_split_at(StringBuilder_t *builder, char *delim) {
+  StringSplice_t *splice = malloc(sizeof(StringSplice_t));
+  splice->splice_count = 0;
+  splice->delim = 0;
+  splice->strsplice = (char **)calloc(STRING_SPLICE_INIT_SIZE, sizeof(char *));
+  char *src_cpy = strdup(builder->str);
+  char *tok = strtok(src_cpy, delim);
+  while (tok) {
+    ++splice->splice_count;
+    size_t copytoken_size = strlen(tok);
+    splice->strsplice[splice->splice_count - 1] =
+        malloc(copytoken_size * sizeof(char));
+    splice->strsplice[splice->splice_count - 1] = strdup(tok);
+    tok = strtok(NULL, delim);
+  }
+  return splice;
+}
+
+StringBuilder_t *sb_copy(StringBuilder_t *sb) {
+  StringBuilder_t *cpy = malloc(sizeof(StringBuilder_t));
+  cpy->str = malloc(sb->strcap);
+  cpy->strcap = sb->strcap;
+  cpy->strsize = sb->strsize;
+  strncpy(cpy->str, sb->str, sb->strsize);
+  return cpy;
+}
+#endif
+
 
 #define __CPM_AVAIL_
 #endif
