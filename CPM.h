@@ -537,6 +537,7 @@ StringBuilder_t *sb_copy(StringBuilder_t *sb) {
   strncpy(cpy->str, sb->str, sb->strsize);
   return cpy;
 }
+#define STRING_ALLOC_SIZE 255
 StringBuilder_t *sb_new() {
   StringBuilder_t *sb_res = malloc(sizeof(StringBuilder_t));
   if (!sb_res)
