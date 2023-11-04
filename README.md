@@ -9,5 +9,6 @@
 #### example included in repository and build.c
 
 ### TODO:
-- [ ] Implement #define CPM_AS_STRLIB to isolate StringBuilder & StringSlice
+- [X] Implement #define CPM_AS_STRLIB to isolate StringBuilder & StringSlice
+- [ ] Re-Implement CPMLOG to function like printf
 - [ ] Implement Windows for coolness sake. 
