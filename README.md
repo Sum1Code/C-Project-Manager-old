@@ -10,7 +10,9 @@ clang build.c -o builder
 
 #### example included in repository and build.c
 
+### DEPRECATED
+
 ### TODO:
-- [X] Implement #define CPM_AS_STRLIB to isolate StringBuilder & StringSlice
+- [X] ~Implement #define CPM_AS_STRLIB to isolate StringBuilder & StringSlice~ **DEPRECATED** (use cpm_strings module instead)
 - [ ] Re-Implement CPMLOG to function like printf
-- [ ] Implement Windows for coolness sake. 
+- [ ] Implement the necessary CPM_CLI to be able to be used as a module_manager
