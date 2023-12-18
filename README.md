@@ -1,4 +1,4 @@
-# C-PROJECT-MANAGER
+# C-PROJECT-MANAGER (DEPRECATED)
 ### CPROJECT-MANAGER is a custom build system made by me, it works however not ripe yet enough to use on production
 ## How to use & build example
 ```bash
@@ -10,5 +10,5 @@ clang build.c -o builder
 
 #### example included in repository and build.c
 
-## NOTICE:
-The current CPM.h will be replaced by a newer rewritten and hopefully cleaner system, which required a new seperate repository, this repository will be eventually archived after the new CPM.h is written. 
+# NOTICE:
+### The current CPM.h will be replaced by a newer rewritten and hopefully cleaner system, which required a new seperate repository, this repository will be eventually archived after the new CPM.h is written. 
